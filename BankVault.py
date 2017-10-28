@@ -1,3 +1,7 @@
+import threading
+from random import randint
+
+
 class BankVault:
     current_balance = 0
     vault_lock = threading.Lock()
@@ -49,7 +53,7 @@ class BankVault:
     @classmethod
     def reduce_by_random_percentage(cls):
         cls.vault_lock.acquire()
-        amount_to_withdraw = int((random.randint(cls.withdraw_min_percent, cls.withdraw_max_percent) / float(100))
+        amount_to_withdraw = int((randint(cls.withdraw_min_percent, cls.withdraw_max_percent) / float(100))
                                  * cls.current_balance)
 
         if amount_to_withdraw > cls.current_balance:

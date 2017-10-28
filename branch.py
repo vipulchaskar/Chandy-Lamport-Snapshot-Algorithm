@@ -4,6 +4,7 @@ import sys
 import socket
 import threading
 import time
+sys.path.append('/home/phao3/protobuf/protobuf-3.4.0/python')
 import bank_pb2
 
 from random import randint
