@@ -24,6 +24,94 @@ init_received = False
 branch_name = None
 
 
+class SnapshotHandler:
+    current_snapshots = {}
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def handle_init_snapshot(cls, incoming_message):
+        snapshot_id = incoming_message.init_snapshot.snapshot_id
+        if snapshot_id in cls.current_snapshots:
+            print "Error! Got init snapshot again for snapshot id : " + str(snapshot_id)
+            return
+
+        # Record local state
+        current_balance = BankVault.get_balance()
+        state = {"local": current_balance}
+        cls.current_snapshots[snapshot_id] = state
+
+        # Send marker message to everyone else
+        marker_msg = bank_pb2.Marker()
+        marker_msg.snapshot_id = snapshot_id
+
+        pb_msg = bank_pb2.BranchMessage()
+        pb_msg.marker.CopyFrom(marker_msg)
+
+        total_peers = ThreadPool.get_thread_count()
+        for i in range(total_peers):
+            a_friend = ThreadPool.get_thread(i)
+            print "Sending marker message to :" + str(a_friend.client_address)
+            a_friend.send_msg_to_remote(pb_msg)
+            # Start recording all incoming activity
+            a_friend.add_recorder(snapshot_id)
+
+    @classmethod
+    def handle_marker(cls, incoming_message, sender_address):
+        snapshot_id = incoming_message.marker.snapshot_id
+
+        if snapshot_id in cls.current_snapshots:
+            print "Not the first time I am receiving this marker msg : " + str(snapshot_id)
+
+            # Get the state of the channel
+
+            total_peers = ThreadPool.get_thread_count()
+            for i in range(total_peers):
+
+                a_friend = ThreadPool.get_thread(i)
+                if a_friend.get_remote_address() == sender_address:
+                    money_in_flight = a_friend.pop_recorder(snapshot_id)
+
+                    # Record the state of the channel
+                    cls.current_snapshots[snapshot_id][str(sender_address)] = money_in_flight
+                    print "Recorded state of the channel for snapshot " + str(snapshot_id) + " as: " +\
+                          str(cls.current_snapshots[snapshot_id])
+                    break
+
+        else:
+            print "Got the marker msg : " + str(snapshot_id) + " for the first time!"
+
+            # Record local state
+            current_balance = BankVault.get_balance()
+            state = {"local": current_balance}
+            cls.current_snapshots[snapshot_id] = state
+
+            # "records the state of the incoming channel from the sender to itself as empty"
+            cls.current_snapshots[snapshot_id][str(sender_address)] = 0
+
+            marker_msg = bank_pb2.Marker()
+            marker_msg.snapshot_id = snapshot_id
+
+            pb_msg = bank_pb2.BranchMessage()
+            pb_msg.marker.CopyFrom(marker_msg)
+
+            # Send marker msg to all outgoing channels, except self
+            total_peers = ThreadPool.get_thread_count()
+            for i in range(total_peers):
+                a_friend = ThreadPool.get_thread(i)
+                a_friend.send_msg_to_remote(pb_msg)
+                # Start recording all incoming activity
+                if a_friend.client_address != sender_address:
+                    a_friend.add_recorder(snapshot_id)
+        print "The snapshot state for snapshot id " + str(snapshot_id) + " as of now is " \
+              + str(cls.current_snapshots[snapshot_id])
+
+    @classmethod
+    def handle_retrieve_snapshot(cls, incoming_message):
+        pass
+
+
 def connect_to_branches(init_message):
 
     if len(init_message.all_branches) == 0:
@@ -43,28 +131,36 @@ def connect_to_branches(init_message):
             client_thread.start()
 
 
-def start_banking_activity(initial_balance):
+class MoneyTransferThread(threading.Thread):
 
-    BankVault.set_balance(initial_balance)
-    print "Branch initialized with initial balance : " + str(initial_balance)
+    def __init__(self, initial_balance):
+        threading.Thread.__init__(self)
+        self.initial_balance = initial_balance
 
-    # Mandatory initial sleep
-    time.sleep(MAX_SLEEP_TIME)
+    def run(self):
+        BankVault.set_balance(self.initial_balance)
+        print "Branch initialized with initial balance : " + str(self.initial_balance)
 
-    while True:
-        sleep_period = randint(MIN_SLEEP_TIME, MAX_SLEEP_TIME)
-        time.sleep(sleep_period)
+        # Mandatory initial sleep
+        time.sleep(MAX_SLEEP_TIME)
 
-        transfer_msg = bank_pb2.Transfer()
-        pb_msg = bank_pb2.BranchMessage()
+        while True:
+            sleep_period = randint(MIN_SLEEP_TIME, MAX_SLEEP_TIME)
+            time.sleep(sleep_period)
 
-        new_friend = ThreadPool.get_random_thread()
-        money_to_send = BankVault.reduce_by_random_percentage()
+            transfer_msg = bank_pb2.Transfer()
+            pb_msg = bank_pb2.BranchMessage()
 
-        transfer_msg.money = money_to_send
+            new_friend = ThreadPool.get_random_thread()
+            money_to_send = BankVault.reduce_by_random_percentage()
 
-        pb_msg.transfer.CopyFrom(transfer_msg)
-        new_friend.send_money_to_remote(pb_msg)
+            transfer_msg.money = money_to_send
+
+            pb_msg.transfer.CopyFrom(transfer_msg)
+
+            print "Sending " + str(pb_msg.transfer.money) + " to " + str(new_friend.client_address) +\
+                  ". New balance is : " + str(BankVault.get_balance())
+            new_friend.send_msg_to_remote(pb_msg)
 
 
 # An object of class ClientThread is created and thread is started
@@ -76,19 +172,33 @@ class ClientThread(threading.Thread):
         self.client_socket = client_socket
         self.client_address = client_address
         self.remote_branch_name = remote_branch_name
+        self.recorders = {}
+
+    def get_remote_address(self):
+        return self.client_address
+
+    def add_recorder(self, recorder_id):
+        self.recorders[recorder_id] = 0
+
+    def update_recorders(self, amount):
+        for recorder in self.recorders:
+            self.recorders[recorder] += amount
+
+    def pop_recorder(self, recorder_id):
+        temp = int(self.recorders[recorder_id])
+        del self.recorders[recorder_id]
+        return temp
 
     def handle_transfer_message(self, incoming_message):
 
         amount = incoming_message.transfer.money
         BankVault.add_amount(amount)
+        self.update_recorders(amount)
         print "Received " + str(amount) + " from " + str(self.client_address) + ". New balance is : "\
               + str(BankVault.get_balance())
 
-    def send_money_to_remote(self, transfer_msg):
-
-        print "Sending " + str(transfer_msg.transfer.money) + " to " + str(self.client_address) + ". New balance is : "\
-              + str(BankVault.get_balance())
-        self.client_socket.send(transfer_msg.SerializeToString())
+    def send_msg_to_remote(self, generic_msg):
+        self.client_socket.send(generic_msg.SerializeToString())
 
     def start_handling_messages(self):
 
@@ -102,6 +212,12 @@ class ClientThread(threading.Thread):
 
             if pb_msg.HasField("transfer"):
                 self.handle_transfer_message(pb_msg)
+            elif pb_msg.HasField("init_snapshot"):
+                SnapshotHandler.handle_init_snapshot(pb_msg)
+            elif pb_msg.HasField("marker"):
+                SnapshotHandler.handle_marker(pb_msg, self.client_address)
+            elif pb_msg.HasField("retrieve_snapshot"):
+                SnapshotHandler.handle_retrieve_snapshot(pb_msg)
             else:
                 print "Error! Message type not identified. This is the message : " + str(pb_msg)
 
@@ -126,12 +242,13 @@ class ClientThread(threading.Thread):
 
             init_message.ParseFromString(init_message_from_socket)
 
-            # Close the socket connection
-            self.client_socket.close()
-
             connect_to_branches(init_message.init_branch)
 
-            start_banking_activity(init_message.init_branch.balance)
+            mt_thread = MoneyTransferThread(init_message.init_branch.balance)
+            mt_thread.daemon = True
+            mt_thread.start()
+
+            self.start_handling_messages()
 
         print "Connected to branch : " + str(self.client_address)
         ThreadPool.add_thread(self)

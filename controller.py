@@ -2,8 +2,13 @@
 
 import sys
 import socket
+import time
 sys.path.append('/home/phao3/protobuf/protobuf-3.4.0/python')
 import bank_pb2
+
+from random import randint
+
+SNAPSHOT_INTERVAL = 10
 
 
 def get_branches_from_input_file(input_file):
@@ -30,6 +35,29 @@ def get_branches_from_input_file(input_file):
     return branches
 
 
+def start_snapshotting(branch_sockets):
+    no_sockets = len(branch_sockets)
+
+    snapshot_id = 1
+
+    while True:
+        time.sleep(SNAPSHOT_INTERVAL)
+
+        pb_msg = bank_pb2.BranchMessage()
+        init_snapshot_msg = bank_pb2.InitSnapshot()
+        init_snapshot_msg.snapshot_id = snapshot_id
+        pb_msg.init_snapshot.CopyFrom(init_snapshot_msg)
+
+        victim = branch_sockets[randint(0, no_sockets-1)]
+        victim[0].send(pb_msg.SerializeToString())
+
+        print "Sent snapshot msg " + str(snapshot_id) + " to " + str(victim[1]) + ":" + str(victim[2])
+        # TODO: Retrieve and display the snapshot
+
+        snapshot_id += 1
+
+
+
 def send_money_to_branches(total_balance, branches):
 
     balance_per_branch = int(total_balance) / len(branches)
@@ -48,25 +76,23 @@ def send_money_to_branches(total_balance, branches):
     pb_msg = bank_pb2.BranchMessage()
     pb_msg.init_branch.CopyFrom(init_branch_msg)
 
-    print "This is the message i am gonna send everyone! " + str(pb_msg)
+    # print "This is the message i am gonna send everyone! " + str(pb_msg)
 
+    branch_sockets = []
     for branch in branches:
-        '''# --- My weird hack ---
-        del pb_msg.init_branch.all_branches[0]
-        # if len(pb_msg.init_branch.all_branches) == 0:
-        #    break
-        # --- My weird hack ends ---'''
 
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect((branch[1], int(branch[2])))
         client_socket.send(pb_msg.SerializeToString())
-        client_socket.close()
+        branch_sockets.append((client_socket, branch[1], int(branch[2])))
+
+    start_snapshotting(branch_sockets)
 
 
 def main(total_balance, input_file):
 
     branches = get_branches_from_input_file(input_file)
-    print(branches)
+    # print(branches)
 
     send_money_to_branches(total_balance, branches)
 
