@@ -100,6 +100,19 @@ class SnapshotHandler:
             total_peers = ThreadPool.get_thread_count()
             for i in range(total_peers):
                 a_friend = ThreadPool.get_thread(i)
+
+                '''# MY HACK BEGIN --- ONLY FOR TESTING
+                if a_friend.client_address == sender_address:
+                    transfer_msg_h = bank_pb2.Transfer()
+                    pb_msg_h = bank_pb2.BranchMessage()
+
+                    transfer_msg_h.money = 10
+
+                    pb_msg_h.transfer.CopyFrom(transfer_msg_h)
+
+                    a_friend.send_msg_to_remote(pb_msg_h)
+                # MY HACK END ---'''
+
                 a_friend.send_msg_to_remote(pb_msg)
                 # Start recording all incoming activity
                 if a_friend.client_address != sender_address:
@@ -109,7 +122,30 @@ class SnapshotHandler:
 
     @classmethod
     def handle_retrieve_snapshot(cls, incoming_message):
-        pass
+        snapshot_id = incoming_message.retrieve_snapshot.snapshot_id
+
+        if snapshot_id not in cls.current_snapshots:
+            print "Error! Asked to retrieve a snapshot ID which doesn't exist!"
+            return None
+
+        pb_msg = bank_pb2.BranchMessage()
+        return_snapshot_obj = bank_pb2.ReturnSnapshot()
+        local_snapshot_obj = return_snapshot_obj.LocalSnapshot()
+
+        local_snapshot_obj.snapshot_id = snapshot_id
+
+        for state in cls.current_snapshots[snapshot_id]:
+            if state != "local":
+                local_snapshot_obj.channel_state.append(cls.current_snapshots[snapshot_id][state])
+            else:
+                local_snapshot_obj.balance = cls.current_snapshots[snapshot_id][state]
+
+        return_snapshot_obj.local_snapshot.CopyFrom(local_snapshot_obj)
+        pb_msg.return_snapshot.CopyFrom(return_snapshot_obj)
+
+        print "Hey! This is the returnsnapshot object I am gonna return! " + str(pb_msg)
+
+        return pb_msg
 
 
 def connect_to_branches(init_message):
@@ -217,7 +253,8 @@ class ClientThread(threading.Thread):
             elif pb_msg.HasField("marker"):
                 SnapshotHandler.handle_marker(pb_msg, self.client_address)
             elif pb_msg.HasField("retrieve_snapshot"):
-                SnapshotHandler.handle_retrieve_snapshot(pb_msg)
+                reply = SnapshotHandler.handle_retrieve_snapshot(pb_msg)
+                self.send_msg_to_remote(reply)
             else:
                 print "Error! Message type not identified. This is the message : " + str(pb_msg)
 

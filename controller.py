@@ -9,7 +9,8 @@ import bank_pb2
 from random import randint
 
 SNAPSHOT_INTERVAL = 10
-
+SNAPSHOT_RETRIEVE_INTERVAL = 5
+MAX_BUFFER_SIZE = 1000
 
 def get_branches_from_input_file(input_file):
     branches = []
@@ -51,11 +52,34 @@ def start_snapshotting(branch_sockets):
         victim = branch_sockets[randint(0, no_sockets-1)]
         victim[0].send(pb_msg.SerializeToString())
 
-        print "Sent snapshot msg " + str(snapshot_id) + " to " + str(victim[1]) + ":" + str(victim[2])
-        # TODO: Retrieve and display the snapshot
+        print "Sent snapshot msg " + str(snapshot_id) + " to " + str(victim[1])
+
+        time.sleep(SNAPSHOT_RETRIEVE_INTERVAL)
+
+        pb_msg = bank_pb2.BranchMessage()
+        retrieve_snapshot_msg = bank_pb2.RetrieveSnapshot()
+        retrieve_snapshot_msg.snapshot_id = snapshot_id
+        pb_msg.retrieve_snapshot.CopyFrom(retrieve_snapshot_msg)
+
+        for branch in branch_sockets:
+            branch[0].send(pb_msg.SerializeToString())
+
+            incoming_msg_from_wire = branch[0].recv(MAX_BUFFER_SIZE)
+
+            if len(incoming_msg_from_wire) == 0:
+                print "Error! the branch " + branch[1] + " returned nothing as returnSnapshot!"
+                continue
+
+            pb_msg_ret = bank_pb2.BranchMessage()
+            pb_msg_ret.ParseFromString(incoming_msg_from_wire)
+
+            if not pb_msg_ret.HasField("return_snapshot"):
+                print "Error! the branch " + branch[1] + " returned some other message : " + str(pb_msg_ret)
+                continue
+
+            print "Snapshot got from " + branch[1] + " is " + str(pb_msg_ret.return_snapshot)
 
         snapshot_id += 1
-
 
 
 def send_money_to_branches(total_balance, branches):
@@ -84,7 +108,7 @@ def send_money_to_branches(total_balance, branches):
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect((branch[1], int(branch[2])))
         client_socket.send(pb_msg.SerializeToString())
-        branch_sockets.append((client_socket, branch[1], int(branch[2])))
+        branch_sockets.append((client_socket, branch[0]))
 
     start_snapshotting(branch_sockets)
 
