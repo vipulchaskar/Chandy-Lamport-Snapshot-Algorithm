@@ -41,6 +41,8 @@ def start_snapshotting(branch_sockets):
 
     snapshot_id = 1
 
+    #branch_names = [x[1] for x in branch_sockets]
+
     while True:
         time.sleep(SNAPSHOT_INTERVAL)
 
@@ -52,7 +54,7 @@ def start_snapshotting(branch_sockets):
         victim = branch_sockets[randint(0, no_sockets-1)]
         victim[0].send(pb_msg.SerializeToString())
 
-        print "Sent snapshot msg " + str(snapshot_id) + " to " + str(victim[1])
+        print "\nSent snapshot msg " + str(snapshot_id) + " to " + str(victim[1])
 
         time.sleep(SNAPSHOT_RETRIEVE_INTERVAL)
 
@@ -61,6 +63,7 @@ def start_snapshotting(branch_sockets):
         retrieve_snapshot_msg.snapshot_id = snapshot_id
         pb_msg.retrieve_snapshot.CopyFrom(retrieve_snapshot_msg)
 
+        print "\nsnapshot_id: " + str(snapshot_id)
         for branch in branch_sockets:
             branch[0].send(pb_msg.SerializeToString())
 
@@ -77,7 +80,16 @@ def start_snapshotting(branch_sockets):
                 print "Error! the branch " + branch[1] + " returned some other message : " + str(pb_msg_ret)
                 continue
 
-            print "Snapshot got from " + branch[1] + " is " + str(pb_msg_ret.return_snapshot)
+            output_string = str(branch[1]) + ": " + str(pb_msg_ret.return_snapshot.local_snapshot.balance) + ", "
+            channel_states = pb_msg_ret.return_snapshot.local_snapshot.channel_state
+
+            branch_names = [x[1] for x in branch_sockets if x[1] != branch[1]]
+            for br_name, channel_state in zip(branch_names, channel_states):
+                output_string += br_name + "->" + branch[1] + ": " + str(channel_state) + ", "
+
+            print output_string
+
+            # print "Snapshot got from " + branch[1] + " is " + str(pb_msg_ret.return_snapshot)
 
         snapshot_id += 1
 

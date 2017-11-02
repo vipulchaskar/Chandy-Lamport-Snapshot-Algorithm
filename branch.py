@@ -11,7 +11,6 @@ from random import randint
 from BankVault import BankVault
 from ThreadPool import ThreadPool
 
-
 MAX_SIMULTANEOUS_CONNECTIONS = 100
 MAX_REQUEST_SIZE = 10000
 MIN_SLEEP_TIME = 1
@@ -52,13 +51,13 @@ class SnapshotHandler:
         total_peers = ThreadPool.get_thread_count()
         for i in range(total_peers):
             a_friend = ThreadPool.get_thread(i)
-            print "Sending marker message to :" + str(a_friend.client_address)
+            print "Sending marker message to :" + str(a_friend.remote_branch_name)
             a_friend.send_msg_to_remote(pb_msg)
             # Start recording all incoming activity
             a_friend.add_recorder(snapshot_id)
 
     @classmethod
-    def handle_marker(cls, incoming_message, sender_address):
+    def handle_marker(cls, incoming_message, remote_branch_name):
         snapshot_id = incoming_message.marker.snapshot_id
 
         if snapshot_id in cls.current_snapshots:
@@ -70,13 +69,13 @@ class SnapshotHandler:
             for i in range(total_peers):
 
                 a_friend = ThreadPool.get_thread(i)
-                if a_friend.get_remote_address() == sender_address:
+                if a_friend.remote_branch_name == remote_branch_name:
                     money_in_flight = a_friend.pop_recorder(snapshot_id)
 
                     # Record the state of the channel
-                    cls.current_snapshots[snapshot_id][str(sender_address)] = money_in_flight
-                    print "Recorded state of the channel for snapshot " + str(snapshot_id) + " as: " +\
-                          str(cls.current_snapshots[snapshot_id])
+                    cls.current_snapshots[snapshot_id][str(remote_branch_name)] = money_in_flight
+                    # print "Recorded state of the channel for snapshot " + str(snapshot_id) + " as: " +\
+                    #      str(cls.current_snapshots[snapshot_id])
                     break
 
         else:
@@ -88,7 +87,7 @@ class SnapshotHandler:
             cls.current_snapshots[snapshot_id] = state
 
             # "records the state of the incoming channel from the sender to itself as empty"
-            cls.current_snapshots[snapshot_id][str(sender_address)] = 0
+            cls.current_snapshots[snapshot_id][str(remote_branch_name)] = 0
 
             marker_msg = bank_pb2.Marker()
             marker_msg.snapshot_id = snapshot_id
@@ -102,7 +101,7 @@ class SnapshotHandler:
                 a_friend = ThreadPool.get_thread(i)
 
                 '''# MY HACK BEGIN --- ONLY FOR TESTING
-                if a_friend.client_address == sender_address:
+                if a_friend.remote_branch_name == remote_branch_name:
                     transfer_msg_h = bank_pb2.Transfer()
                     pb_msg_h = bank_pb2.BranchMessage()
 
@@ -115,10 +114,10 @@ class SnapshotHandler:
 
                 a_friend.send_msg_to_remote(pb_msg)
                 # Start recording all incoming activity
-                if a_friend.client_address != sender_address:
+                if a_friend.remote_branch_name != remote_branch_name:
                     a_friend.add_recorder(snapshot_id)
-        print "The snapshot state for snapshot id " + str(snapshot_id) + " as of now is " \
-              + str(cls.current_snapshots[snapshot_id])
+        # print "The snapshot state for snapshot id " + str(snapshot_id) + " as of now is " \
+        #      + str(cls.current_snapshots[snapshot_id])
 
     @classmethod
     def handle_retrieve_snapshot(cls, incoming_message):
@@ -194,7 +193,7 @@ class MoneyTransferThread(threading.Thread):
 
             pb_msg.transfer.CopyFrom(transfer_msg)
 
-            print "Sending " + str(pb_msg.transfer.money) + " to " + str(new_friend.client_address) +\
+            print "Sending " + str(pb_msg.transfer.money) + " to " + str(new_friend.remote_branch_name) +\
                   ". New balance is : " + str(BankVault.get_balance())
             new_friend.send_msg_to_remote(pb_msg)
 
@@ -230,7 +229,7 @@ class ClientThread(threading.Thread):
         amount = incoming_message.transfer.money
         BankVault.add_amount(amount)
         self.update_recorders(amount)
-        print "Received " + str(amount) + " from " + str(self.client_address) + ". New balance is : "\
+        print "Received " + str(amount) + " from " + str(self.remote_branch_name) + ". New balance is : "\
               + str(BankVault.get_balance())
 
     def send_msg_to_remote(self, generic_msg):
@@ -251,7 +250,7 @@ class ClientThread(threading.Thread):
             elif pb_msg.HasField("init_snapshot"):
                 SnapshotHandler.handle_init_snapshot(pb_msg)
             elif pb_msg.HasField("marker"):
-                SnapshotHandler.handle_marker(pb_msg, self.client_address)
+                SnapshotHandler.handle_marker(pb_msg, self.remote_branch_name)
             elif pb_msg.HasField("retrieve_snapshot"):
                 reply = SnapshotHandler.handle_retrieve_snapshot(pb_msg)
                 self.send_msg_to_remote(reply)
@@ -287,7 +286,12 @@ class ClientThread(threading.Thread):
 
             self.start_handling_messages()
 
-        print "Connected to branch : " + str(self.client_address)
+        # Let's get introduced.
+        self.client_socket.send(branch_name)
+        remote_branch_name = self.client_socket.recv(MAX_REQUEST_SIZE)
+        self.remote_branch_name = remote_branch_name
+        print "Connected to : " + str(remote_branch_name)
+
         ThreadPool.add_thread(self)
 
         self.start_handling_messages()
