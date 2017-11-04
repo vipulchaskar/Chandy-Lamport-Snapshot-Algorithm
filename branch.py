@@ -25,6 +25,7 @@ branch_name = None
 
 class SnapshotHandler:
     current_snapshots = {}
+    marker_handler_lock = threading.Lock()
 
     def __init__(self):
         pass
@@ -58,10 +59,13 @@ class SnapshotHandler:
 
     @classmethod
     def handle_marker(cls, incoming_message, remote_branch_name):
+
+        cls.marker_handler_lock.acquire()
         snapshot_id = incoming_message.marker.snapshot_id
 
         if snapshot_id in cls.current_snapshots:
-            print "Not the first time I am receiving this marker msg : " + str(snapshot_id)
+            print "Not the first time I am receiving this marker msg : " + str(snapshot_id) + " which is from "\
+                  + str(remote_branch_name)
 
             # Get the state of the channel
 
@@ -79,7 +83,7 @@ class SnapshotHandler:
                     break
 
         else:
-            print "Got the marker msg : " + str(snapshot_id) + " for the first time!"
+            print "Got the marker msg : " + str(snapshot_id) + " for the first time! from " + str(remote_branch_name)
 
             # Record local state
             current_balance = BankVault.get_balance()
@@ -118,6 +122,7 @@ class SnapshotHandler:
                     a_friend.add_recorder(snapshot_id)
         # print "The snapshot state for snapshot id " + str(snapshot_id) + " as of now is " \
         #      + str(cls.current_snapshots[snapshot_id])
+        cls.marker_handler_lock.release()
 
     @classmethod
     def handle_retrieve_snapshot(cls, incoming_message):
@@ -208,20 +213,27 @@ class ClientThread(threading.Thread):
         self.client_address = client_address
         self.remote_branch_name = remote_branch_name
         self.recorders = {}
+        self.recorders_lock = threading.Lock()
 
     def get_remote_address(self):
         return self.client_address
 
     def add_recorder(self, recorder_id):
+        self.recorders_lock.acquire()
         self.recorders[recorder_id] = 0
+        self.recorders_lock.release()
 
     def update_recorders(self, amount):
+        self.recorders_lock.acquire()
         for recorder in self.recorders:
             self.recorders[recorder] += amount
+        self.recorders_lock.release()
 
     def pop_recorder(self, recorder_id):
+        self.recorders_lock.acquire()
         temp = int(self.recorders[recorder_id])
         del self.recorders[recorder_id]
+        self.recorders_lock.release()
         return temp
 
     def handle_transfer_message(self, incoming_message):

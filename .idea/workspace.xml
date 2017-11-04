@@ -5,7 +5,6 @@
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/branch.py" afterPath="$PROJECT_DIR$/branch.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/branches.txt" afterPath="$PROJECT_DIR$/branches.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/controller.py" afterPath="$PROJECT_DIR$/controller.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -19,8 +18,8 @@
       <file leaf-file-name="branch.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/branch.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-2596">
-              <caret line="105" column="26" lean-forward="false" selection-start-line="105" selection-start-column="26" selection-end-line="105" selection-end-column="26" />
+            <state relative-caret-position="285">
+              <caret line="231" column="40" lean-forward="true" selection-start-line="231" selection-start-column="40" selection-end-line="231" selection-end-column="40" />
               <folding>
                 <element signature="e#19#29#0" expanded="true" />
               </folding>
@@ -63,8 +62,8 @@
       <file leaf-file-name="controller.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/controller.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="180">
-              <caret line="12" column="22" lean-forward="true" selection-start-line="12" selection-start-column="22" selection-end-line="12" selection-end-column="22" />
+            <state relative-caret-position="298">
+              <caret line="114" column="36" lean-forward="false" selection-start-line="114" selection-start-column="36" selection-end-line="114" selection-end-column="36" />
               <folding>
                 <element signature="e#19#29#0" expanded="true" />
               </folding>
@@ -75,8 +74,8 @@
       <file leaf-file-name="branches.txt" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/branches.txt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="60">
-              <caret line="4" column="22" lean-forward="false" selection-start-line="4" selection-start-column="22" selection-end-line="4" selection-end-column="22" />
+            <state relative-caret-position="30">
+              <caret line="2" column="22" lean-forward="false" selection-start-line="2" selection-start-column="22" selection-end-line="2" selection-end-column="22" />
               <folding />
             </state>
           </provider>
@@ -95,8 +94,8 @@
       <file leaf-file-name="bank.proto" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/bank.proto">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="304">
-              <caret line="41" column="24" lean-forward="true" selection-start-line="41" selection-start-column="24" selection-end-line="41" selection-end-column="24" />
+            <state relative-caret-position="615">
+              <caret line="41" column="24" lean-forward="false" selection-start-line="41" selection-start-column="24" selection-end-line="41" selection-end-column="24" />
               <folding />
             </state>
           </provider>
@@ -139,6 +138,7 @@
       <find>handle_marker</find>
       <find>address</find>
       <find>print</find>
+      <find>money_in_flight</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -176,6 +176,8 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
+      <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -187,8 +189,6 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scratches" />
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -268,7 +268,7 @@
   <component name="ToolWindowManager">
     <frame x="0" y="0" width="1280" height="800" extended-state="0" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.21001616" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.21647818" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3287483" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
@@ -694,36 +694,36 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/branches.txt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="60">
-          <caret line="4" column="22" lean-forward="false" selection-start-line="4" selection-start-column="22" selection-end-line="4" selection-end-column="22" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/bank.proto">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="304">
-          <caret line="41" column="24" lean-forward="true" selection-start-line="41" selection-start-column="24" selection-end-line="41" selection-end-column="24" />
+        <state relative-caret-position="615">
+          <caret line="41" column="24" lean-forward="false" selection-start-line="41" selection-start-column="24" selection-end-line="41" selection-end-column="24" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/controller.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="12" column="22" lean-forward="true" selection-start-line="12" selection-start-column="22" selection-end-line="12" selection-end-column="22" />
+        <state relative-caret-position="298">
+          <caret line="114" column="36" lean-forward="false" selection-start-line="114" selection-start-column="36" selection-end-line="114" selection-end-column="36" />
           <folding>
             <element signature="e#19#29#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/branches.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="30">
+          <caret line="2" column="22" lean-forward="false" selection-start-line="2" selection-start-column="22" selection-end-line="2" selection-end-column="22" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/branch.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-2596">
-          <caret line="105" column="26" lean-forward="false" selection-start-line="105" selection-start-column="26" selection-end-line="105" selection-end-column="26" />
+        <state relative-caret-position="285">
+          <caret line="231" column="40" lean-forward="true" selection-start-line="231" selection-start-column="40" selection-end-line="231" selection-end-column="40" />
           <folding>
             <element signature="e#19#29#0" expanded="true" />
           </folding>
