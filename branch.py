@@ -3,21 +3,15 @@
 import sys
 import socket
 import threading
-import time
 sys.path.append('/home/phao3/protobuf/protobuf-3.4.0/python')
 import bank_pb2
 
-from random import randint
 from BankVault import BankVault
 from ThreadPool import ThreadPool
+from MoneyTransferThread import MoneyTransferThread
 
 MAX_SIMULTANEOUS_CONNECTIONS = 100
 MAX_REQUEST_SIZE = 10000
-MIN_SLEEP_TIME = 1
-MAX_SLEEP_TIME = 5
-
-ERROR_SOCKET_CANNOT_BIND = "Cannot start branch on port {0}. Perhaps someone is already using that port " \
-                           "or you don't have enough privileges?"
 
 init_received = False
 branch_name = None
@@ -32,10 +26,16 @@ class SnapshotHandler:
 
     @classmethod
     def handle_init_snapshot(cls, incoming_message):
+
+        MoneyTransferThread.set_enabled(False)
+        cls.marker_handler_lock.acquire()
+
         snapshot_id = incoming_message.init_snapshot.snapshot_id
         if snapshot_id in cls.current_snapshots:
             print "Error! Got init snapshot again for snapshot id : " + str(snapshot_id)
             return
+
+        print "Got init_snapshot msg (snapshot_id: " + str(snapshot_id) + ")"
 
         # Record local state
         current_balance = BankVault.get_balance()
@@ -52,20 +52,24 @@ class SnapshotHandler:
         total_peers = ThreadPool.get_thread_count()
         for i in range(total_peers):
             a_friend = ThreadPool.get_thread(i)
-            print "Sending marker message to :" + str(a_friend.remote_branch_name)
+            print "Sending marker message to : " + str(a_friend.remote_branch_name) + " (snapshot_id: "\
+                  + str(snapshot_id) + ")"
             a_friend.send_msg_to_remote(pb_msg)
             # Start recording all incoming activity
             a_friend.add_recorder(snapshot_id)
 
+        cls.marker_handler_lock.release()
+        MoneyTransferThread.set_enabled(True)
+
     @classmethod
     def handle_marker(cls, incoming_message, remote_branch_name):
 
+        MoneyTransferThread.set_enabled(False)
         cls.marker_handler_lock.acquire()
         snapshot_id = incoming_message.marker.snapshot_id
 
         if snapshot_id in cls.current_snapshots:
-            print "Not the first time I am receiving this marker msg : " + str(snapshot_id) + " which is from "\
-                  + str(remote_branch_name)
+            print "Got reply marker msg from: " + str(remote_branch_name) + " (snapshot_id: " + str(snapshot_id) + ")"
 
             # Get the state of the channel
 
@@ -83,7 +87,8 @@ class SnapshotHandler:
                     break
 
         else:
-            print "Got the marker msg : " + str(snapshot_id) + " for the first time! from " + str(remote_branch_name)
+            print "Got the first marker msg from " + str(remote_branch_name) + " (snapshot_id: "\
+                  + str(snapshot_id) + ")"
 
             # Record local state
             current_balance = BankVault.get_balance()
@@ -116,6 +121,8 @@ class SnapshotHandler:
                     a_friend.send_msg_to_remote(pb_msg_h)
                 # MY HACK END ---'''
 
+                print "Sending marker message to : " + str(a_friend.remote_branch_name) + " (snapshot_id: " \
+                      + str(snapshot_id) + ")"
                 a_friend.send_msg_to_remote(pb_msg)
                 # Start recording all incoming activity
                 if a_friend.remote_branch_name != remote_branch_name:
@@ -123,6 +130,7 @@ class SnapshotHandler:
         # print "The snapshot state for snapshot id " + str(snapshot_id) + " as of now is " \
         #      + str(cls.current_snapshots[snapshot_id])
         cls.marker_handler_lock.release()
+        MoneyTransferThread.set_enabled(True)
 
     @classmethod
     def handle_retrieve_snapshot(cls, incoming_message):
@@ -147,7 +155,7 @@ class SnapshotHandler:
         return_snapshot_obj.local_snapshot.CopyFrom(local_snapshot_obj)
         pb_msg.return_snapshot.CopyFrom(return_snapshot_obj)
 
-        print "Hey! This is the returnsnapshot object I am gonna return! " + str(pb_msg)
+        # print "Hey! This is the returnsnapshot object I am gonna return! " + str(pb_msg)
 
         return pb_msg
 
@@ -169,38 +177,6 @@ def connect_to_branches(init_message):
             client_thread = ClientThread(client_socket, remote_address, remote_branch.name)
             client_thread.daemon = True
             client_thread.start()
-
-
-class MoneyTransferThread(threading.Thread):
-
-    def __init__(self, initial_balance):
-        threading.Thread.__init__(self)
-        self.initial_balance = initial_balance
-
-    def run(self):
-        BankVault.set_balance(self.initial_balance)
-        print "Branch initialized with initial balance : " + str(self.initial_balance)
-
-        # Mandatory initial sleep
-        time.sleep(MAX_SLEEP_TIME)
-
-        while True:
-            sleep_period = randint(MIN_SLEEP_TIME, MAX_SLEEP_TIME)
-            time.sleep(sleep_period)
-
-            transfer_msg = bank_pb2.Transfer()
-            pb_msg = bank_pb2.BranchMessage()
-
-            new_friend = ThreadPool.get_random_thread()
-            money_to_send = BankVault.reduce_by_random_percentage()
-
-            transfer_msg.money = money_to_send
-
-            pb_msg.transfer.CopyFrom(transfer_msg)
-
-            print "Sending " + str(pb_msg.transfer.money) + " to " + str(new_friend.remote_branch_name) +\
-                  ". New balance is : " + str(BankVault.get_balance())
-            new_friend.send_msg_to_remote(pb_msg)
 
 
 # An object of class ClientThread is created and thread is started
@@ -323,7 +299,8 @@ def start_listener_thread(local_port_no):
         listener_socket.listen(MAX_SIMULTANEOUS_CONNECTIONS)
 
     except socket.error:
-        print ERROR_SOCKET_CANNOT_BIND.format(local_port_no)
+        print "Cannot start branch on port {0}. Perhaps someone is already using that port " \
+                           "or you don't have enough privileges?".format(local_port_no)
         sys.exit(1)
 
     print str(branch_name) + " listening on " + str(server_hostname) + ":" + str(local_port_no)

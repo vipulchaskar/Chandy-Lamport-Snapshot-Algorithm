@@ -12,6 +12,7 @@ SNAPSHOT_INTERVAL = 10
 SNAPSHOT_RETRIEVE_INTERVAL = 5
 MAX_BUFFER_SIZE = 1000
 
+
 def get_branches_from_input_file(input_file):
     branches = []
 
@@ -40,8 +41,6 @@ def start_snapshotting(branch_sockets):
     no_sockets = len(branch_sockets)
 
     snapshot_id = 1
-
-    #branch_names = [x[1] for x in branch_sockets]
 
     while True:
         time.sleep(SNAPSHOT_INTERVAL)
@@ -89,8 +88,6 @@ def start_snapshotting(branch_sockets):
 
             print output_string
 
-            # print "Snapshot got from " + branch[1] + " is " + str(pb_msg_ret.return_snapshot)
-
         snapshot_id += 1
 
 
@@ -98,7 +95,7 @@ def send_money_to_branches(total_balance, branches):
 
     balance_per_branch = int(total_balance) / len(branches)
 
-    print "Sending " + str(balance_per_branch) + " per branch to these branches: " + str(branches)
+    print "Sending " + str(balance_per_branch) + " per branch to these branches: " + str([x[0] for x in branches])
 
     init_branch_msg = bank_pb2.InitBranch()
     init_branch_msg.balance = balance_per_branch
