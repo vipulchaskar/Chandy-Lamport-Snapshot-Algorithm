@@ -30,36 +30,42 @@ class BankVault:
     @classmethod
     def reduce_balance(cls, withdrawal_amount):
         cls.vault_lock.acquire()
+
         if withdrawal_amount > cls.current_balance:
-            print "Error! Cannot withdraw more than what bank already has!"
+            print "ERROR! Cannot withdraw more than what bank already has!"
             return 0
+
         cls.current_balance -= withdrawal_amount
+
         cls.vault_lock.release()
         return withdrawal_amount
 
     @classmethod
     def reduce_by_percentage(cls, amount_percentage):
         cls.vault_lock.acquire()
+
         amount_to_withdraw = int((amount_percentage / float(100)) * cls.current_balance)
 
         if amount_to_withdraw > cls.current_balance:
-            print "Error! Cannot withdraw more than what bank already has!"
+            print "ERROR! Cannot withdraw more than what bank already has!"
             return 0
 
         cls.current_balance -= amount_to_withdraw
+
         cls.vault_lock.release()
         return amount_to_withdraw
 
     @classmethod
     def reduce_by_random_percentage(cls):
         cls.vault_lock.acquire()
+
         amount_to_withdraw = int((randint(cls.withdraw_min_percent, cls.withdraw_max_percent) / float(100))
                                  * cls.current_balance)
-
         if amount_to_withdraw > cls.current_balance:
-            print "Error! Cannot withdraw more than what bank already has!"
+            print "ERROR! Cannot withdraw more than what bank already has!"
             return 0
 
         cls.current_balance -= amount_to_withdraw
+
         cls.vault_lock.release()
         return amount_to_withdraw

@@ -10,7 +10,6 @@ class ThreadPool:
 
     @classmethod
     def add_thread(cls, new_thread):
-        # TODO: Does this need to be thread-safe? :D
         cls.thread_list.append(new_thread)
         cls.thread_count += 1
 
@@ -19,7 +18,7 @@ class ThreadPool:
         try:
             return cls.thread_list[thread_no]
         except IndexError:
-            print "Error! The thread with given index " + str(thread_no) + " doesn't exist."
+            print "ERROR! The thread with given index " + str(thread_no) + " doesn't exist."
 
     @classmethod
     def get_thread_count(cls):
